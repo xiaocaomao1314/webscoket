@@ -1,0 +1,22 @@
+{
+  "name": "scoket",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/jsonwebtoken": "^8.5.0",
+    "@types/reconnectingwebsocket": "^1.0.5",
+    "@types/socket.io": "^2.1.12",
+    "@types/ws": "^7.4.0",
+    "jsonwebtoken": "^8.5.1",
+    "reconnectingwebsocket": "^1.0.0",
+    "socket.io": "^3.0.4",
+    "ws": "^7.4.1"
+  }
+}

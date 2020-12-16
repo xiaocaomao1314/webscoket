@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        li::before {
+            display: -webkit-box;
+            content: attr(data-color);
+            display: inline-block;
+        }
+        
+        li {
+            list-style: none;
+            width: 560px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 建立客户端进行操作 -->
+    <div id="app">
+        <h2>聊天室 {{name}}
+            <span v-if="name!==''">------------</span>
+            <span v-if="name!==''" @click=" webSocket&&webSocket.close() " style="cursor: pointer; ">退出</span>
+        </h2>
+        <div v-if="name==='' ">
+            <input type="text " v-model="username ">
+            <button @click="submit ">进入聊天室</button>
+        </div>
+        <div v-else>
+            <ul>
+                <li v-for="(item,index) in messages " :key="index " :data-color="item.color " :style="{textAlign:item.color=='' ? 'center': 'left'} ">
+                    {{item.msg}}
+                </li>
+            </ul>
+            <input type="text " v-model="inputVal ">
+            <button @click="submit ">发送</button>
+            <p> {{inputVal}}</p>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js "></script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                username: '',
+                inputVal: '',
+                webSocket: '',
+                messages: [],
+                name: ''
+            },
+            mounted() {
+
+            },
+            methods: {
+                connection() {
+                    return new Promise((resolve, reject) => {
+                        this.webSocket = new WebSocket('ws://j4i9yq.natappfree.cc')
+                            // 监听否连接
+                        this.webSocket.onopen = () => {
+                            console.log("连接成功 ")
+                            resolve(true)
+                                // 连接成功监听服务端发送的消息
+                            this.messageEvent()
+                                // 监听关闭连接
+                            this.closeEvent()
+                        }
+                    })
+
+
+                },
+                async submit() {
+                    const m = {
+                        name: '',
+                        msg: '',
+                        color: ''
+                    }
+                    if (this.name === '') {
+                        if (this.username.trim() === '') return
+                        await this.connection()
+                        this.name = this.username
+                    } else {
+                        if (this.inputVal.trim() === '') return
+                        m.color = this.name + '：'
+                        this.messages.push(m)
+                    }
+                    m.name = this.name
+                    m.msg = this.inputVal
+                        // 提交发送消息给服务端
+                    this.webSocket.send(JSON.stringify(m))
+                    this.inputVal = ''
+                },
+                messageEvent() {
+                    this.webSocket.onmessage = (msg) => {
+                        // 监听到接收的消息
+                        console.log(msg)
+                        this.messages.push(JSON.parse(msg.data))
+                    }
+                },
+                closeEvent() {
+                    this.webSocket.onclose = () => {
+                        this.name = ''
+                        this.messages = []
+                    }
+                }
+            },
+        })
+    </script>
+</body>
+
+</html>

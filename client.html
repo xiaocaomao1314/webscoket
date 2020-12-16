@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        li::before {
+            display: -webkit-box;
+            content: attr(data-color);
+            display: inline-block;
+        }
+        
+        li {
+            list-style: none;
+            width: 100%
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 建立客户端进行操作 -->
+    <div id="app">
+        <h2>聊天室{{room}}</h2>
+        <div v-if="name==='' ">
+            <label>用户名：</label><input type="text " v-model="username ">
+            <label>房间：</label><input type="text " v-model="room ">
+            <button @click="submit ">进入聊天室</button>
+        </div>
+        <div v-else>
+            <p>
+                <span>姓名：{{name}} -- 在线人数：{{num}}--</span>
+                <span @click=" webSocket&&webSocket.close() " style="cursor: pointer; ">退出</span>
+            </p>
+            <ul>
+                <li v-for="(item,index) in messages " :key="index " :data-color="item.color " :style="{textAlign:item.color=='' ? 'center': 'left'} ">
+                    {{item.msg}}
+                </li>
+            </ul>
+            <input type="text " v-model="inputVal ">
+            <button @click="submit ">发送</button>
+            <p> {{inputVal}}</p>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js "></script>
+    <script>
+        // function heartbeat() {
+        //     clearTimeout(this.pingTimeout);
+        //     console.log('客户端接收ping消息')
+        //         // Use `WebSocket#terminate()`, which immediately destroys the connection,
+        //         // instead of `WebSocket#close()`, which waits for the close timer.
+        //         // Delay should be equal to the interval at which your server
+        //         // sends out pings plus a conservative assumption of the latency.
+        //     this.pingTimeout = setTimeout(() => {
+        //         console.log(this, "瞧瞧")
+        //         this.close();
+        //     }, 3000 + 100);
+        // }
+        var app = new Vue({
+            el: '#app',
+            data: {
+                username: '',
+                inputVal: '',
+                webSocket: '',
+                messages: [],
+                name: '',
+                num: '',
+                room: ''
+            },
+            mounted() {
+
+            },
+            methods: {
+                connection() {
+                    return new Promise((resolve, reject) => {
+                        var cookies = document.cookie.split(';');
+                        var cookieObj = cookies.reduce((pre, next) => {
+                            const key = next.split('=')[0];
+                            const val = next.split('=')[1];
+                            pre[key] = val;
+                            return pre;
+                        }, {})
+                        console.log(cookieObj, "这是什么我看看")
+                        this.webSocket = new WebSocket('ws://3a9pya.natappfree.cc' + "/webSocketServer", cookieObj.token)
+                            // 监听否连接
+                        this.webSocket.onopen = () => {
+                            console.log("连接成功 ")
+                            this.sTime()
+                                // heartbeat.call(this.webSocket)
+                            resolve(true)
+                                // 连接成功监听服务端发送的消息
+                            this.messageEvent()
+                                // 监听关闭连接
+                            this.closeEvent()
+                                // 监听服务端发送来的ping消息
+                                // this.pingEvent()
+                                // 监听到错误进行关闭
+                            this.webSocket.onerror = this.close
+                        }
+                    })
+
+
+                },
+                async submit() {
+                    if (this.username.trim() === '' || this.room.trim() === '') return
+                    const m = {
+                        name: '',
+                        msg: '',
+                        color: ''
+                    }
+                    if (this.name === '') {
+                        await this.connection()
+                        this.name = this.username
+                        m.room = this.room
+                    } else {
+                        if (this.inputVal.trim() === '') return
+                        m.color = this.name + '：'
+                        this.messages.push(m)
+                    }
+                    m.name = this.name
+                    m.msg = this.inputVal
+                        // 提交发送消息给服务端
+                    this.webSocket.send(JSON.stringify(m))
+                    this.inputVal = ''
+                },
+                messageEvent() {
+                    this.webSocket.onmessage = (msg) => {
+
+                        // 监听到接收的消息
+                        const data = JSON.parse(msg.data)
+                            // 监听服务端发送的token
+                        if (data.token && data.token !== undefined) {
+                            console.log(data.token, "token")
+                            document.cookie = `token=${data.token}`
+                            return
+                        }
+                        // 这个是判断是否服务端发送消息来了 时刻监听着
+                        if (data.event === 'ping' && data.message === "heartbeat") {
+                            this.sTime()
+                                // 客户端接收到了服务端发送来的心动必须第一时间发送出去
+                            this.webSocket.send(JSON.stringify({
+                                event: "pong",
+                                message: "heartbeat"
+                            }))
+                            return
+                        }
+                        if (!(data.flag && data.flag === 1)) {
+                            this.messages.push(data)
+                        }
+                        this.num = data.num
+                    }
+                },
+                closeEvent() {
+                    this.webSocket.onclose = () => {
+                        this.name = ''
+                        this.num = ''
+                        this.messages = []
+                        clearTimeout(this.pingTimeout)
+                            // clearTimeout(this.webSocket.pingTimeout);
+                    }
+                },
+                // pingEvent() {
+                //     this.webSocket.onping = () => {
+                //         this.webSocket.onping = heartbeat.bind(this.webSocket)
+                //     }
+                // },
+                // 服务端在5s内没有接收到消息就自动连接
+                sTime() {
+                    clearTimeout(this.pingTimeout)
+                    this.pingTimeout = setTimeout(() => {
+                        // 5 秒内没有收到服务端发送的心跳就关闭连接
+                        console.log("服务端发送的心跳没有到达 关闭")
+                        this.close();
+                    }, 5000);
+                },
+                close() {
+                    this.webSocket.close()
+                }
+            },
+        })
+    </script>
+</body>
+
+</html>
+
+</html>

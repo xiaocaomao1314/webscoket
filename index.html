@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div>这新的</div>
+    <button class="send">发送消息</button>
+    <p></p>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = new io()
+        document.querySelector('.send').addEventListener('click', function() {
+                // 客户端向服务端发送消息
+                socket.emit('sendEvent', "发送给服务端")
+            })
+            // 监听服务端给客户端发送的消息
+        socket.on('message', (msg) => {
+            document.querySelector('p').innerHTML = msg
+        })
+    </script>
+</body>
+
+</html>
